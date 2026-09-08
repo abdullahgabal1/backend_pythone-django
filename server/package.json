@@ -1,0 +1,25 @@
+{
+  "name": "daary-akedly-otp-service",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Backend connector for Akedly V1.2 OTP (challenge/send/verify proxy). Drop into your real backend or run standalone.",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc",
+    "start": "node dist/server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "express-rate-limit": "^7.4.0"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/node": "^20.14.0",
+    "tsx": "^4.16.2",
+    "typescript": "^5.6.2"
+  }
+}

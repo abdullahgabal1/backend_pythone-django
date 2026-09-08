@@ -1,0 +1,101 @@
+version: "3.9"
+
+services:
+  # ─── PostgreSQL ──────────────────────────────────────────────
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: daary_db
+      POSTGRES_USER: daary_user
+      POSTGRES_PASSWORD: daary_pass
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U daary_user -d daary_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─── Redis ───────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─── Django API ──────────────────────────────────────────────
+  api:
+    build: .
+    command: >
+      sh -c "python manage.py migrate --noinput &&
+             python manage.py collectstatic --noinput &&
+             gunicorn daary_backend.wsgi:application --bind 0.0.0.0:8000 --workers 3"
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DJANGO_ENV: prod
+      DATABASE_URL: postgres://daary_user:daary_pass@db:5432/daary_db
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/0
+    volumes:
+      - static_files:/app/staticfiles
+      - media_files:/app/media
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health/')\""]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # ─── Celery Worker ──────────────────────────────────────────
+  celery_worker:
+    build: .
+    command: celery -A daary_backend worker --loglevel=info
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DJANGO_ENV: prod
+      DATABASE_URL: postgres://daary_user:daary_pass@db:5432/daary_db
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/0
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # ─── Celery Beat (scheduled tasks) ─────────────────────────
+  celery_beat:
+    build: .
+    command: celery -A daary_backend beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DJANGO_ENV: prod
+      DATABASE_URL: postgres://daary_user:daary_pass@db:5432/daary_db
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/0
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+  static_files:
+  media_files:
