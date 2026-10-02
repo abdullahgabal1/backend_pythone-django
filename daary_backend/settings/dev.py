@@ -12,6 +12,19 @@ DATABASES = {
     "default": env.db("DATABASE_URL", default="sqlite:///" + str(BASE_DIR / "db.sqlite3")),
 }
 
+# Cache backend: Use Redis if REDIS_URL is explicitly set, else LocMemCache for quick offline dev
+CACHES = {
+    "default": {
+        "BACKEND": env(
+            "CACHE_BACKEND",
+            default="django.core.cache.backends.redis.RedisCache"
+            if env("REDIS_URL", default=None)
+            else "django.core.cache.backends.locmem.LocMemCache",
+        ),
+        "LOCATION": env("REDIS_URL", default="dev-locmem-cache"),
+    }
+}
+
 # Relax CORS for local frontend dev server
 CORS_ALLOW_ALL_ORIGINS = True
 

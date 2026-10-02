@@ -4,10 +4,17 @@ Developer Accounts — Models
 DeveloperAccount (the company/org), DeveloperUser (email-based auth),
 and Permission (RBAC lookup table).
 """
+import binascii
+import os
+
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager
 from django.db import models
 
 from apps.common.models import TimestampedModel
+
+
+def generate_token_key():
+    return binascii.hexlify(os.urandom(32)).decode()
 
 
 class Permission(models.Model):
@@ -117,3 +124,29 @@ class DeveloperUser(AbstractBaseUser):
     @property
     def is_active(self):
         return self.status == DeveloperUserStatus.ACTIVE
+
+
+class DeveloperAuthToken(models.Model):
+    """
+    Dedicated token model for DeveloperUser to prevent collision/integrity errors
+    with DRF's shared authtoken.Token table (which points to users.User).
+    """
+
+    user = models.OneToOneField(
+        DeveloperUser,
+        on_delete=models.CASCADE,
+        related_name="auth_token",
+    )
+    key = models.CharField(max_length=64, unique=True, default=generate_token_key)
+    created = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created"]
+
+    def save(self, *args, **kwargs):
+        if not self.key:
+            self.key = generate_token_key()
+        return super().save(*args, **kwargs)
+
+    def __str__(self):
+        return self.key

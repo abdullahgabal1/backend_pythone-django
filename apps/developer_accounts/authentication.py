@@ -4,10 +4,9 @@ Developer Accounts — Authentication Backend
 Custom authentication backend to resolve Token → DeveloperUser.
 """
 from rest_framework.authentication import TokenAuthentication
-from rest_framework.authtoken.models import Token
 from rest_framework.exceptions import AuthenticationFailed
 
-from apps.developer_accounts.models import DeveloperUser
+from apps.developer_accounts.models import DeveloperAuthToken, DeveloperUser
 
 
 class DeveloperTokenAuthentication(TokenAuthentication):
@@ -16,18 +15,15 @@ class DeveloperTokenAuthentication(TokenAuthentication):
     The frontend sends `Authorization: Token <token>`.
     """
 
+    model = DeveloperAuthToken
+
     def authenticate_credentials(self, key):
         try:
-            token = Token.objects.get(key=key)
-        except Token.DoesNotExist:
+            token = DeveloperAuthToken.objects.select_related("user").get(key=key)
+        except DeveloperAuthToken.DoesNotExist:
             raise AuthenticationFailed("رمز المصادقة غير صالح.")
 
-        # The token's user_id points to a DeveloperUser
-        try:
-            user = DeveloperUser.objects.get(pk=token.user_id)
-        except DeveloperUser.DoesNotExist:
-            raise AuthenticationFailed("المستخدم غير موجود.")
-
+        user = token.user
         if not user.is_active:
             raise AuthenticationFailed("هذا الحساب غير نشط.")
 

@@ -1,3 +1,4 @@
+from datetime import date
 from decimal import Decimal
 
 import pytest
@@ -55,3 +56,25 @@ def test_fixed_sequence_survey_returns_top_four(api_client):
     result_response = api_client.get(reverse("ai-survey-results", args=[session_id]))
     assert result_response.status_code == 200
     assert result_response.json()["data"]["session_id"] == session_id
+
+
+@pytest.mark.django_db
+def test_survey_results_ownership_check(api_client):
+    from apps.ai.models import SurveySession, SurveyResult
+    from apps.users.models import User
+
+    user_a = User.objects.create_user(phone="01011111111", name="User A", birthday=date(1995, 1, 1))
+    user_b = User.objects.create_user(phone="01022222222", name="User B", birthday=date(1995, 1, 1))
+
+    session = SurveySession.objects.create(user=user_a, status=SurveySession.Status.COMPLETED)
+    SurveyResult.objects.create(session=session, top_properties=[])
+
+    # Unauthenticated / user B requests session owned by user A -> 403
+    api_client.force_authenticate(user=user_b)
+    response = api_client.get(reverse("ai-survey-results", args=[session.id]))
+    assert response.status_code == 403
+
+    # User A requests their own session -> 200
+    api_client.force_authenticate(user=user_a)
+    response = api_client.get(reverse("ai-survey-results", args=[session.id]))
+    assert response.status_code == 200

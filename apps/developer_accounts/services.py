@@ -6,11 +6,11 @@ Business logic for developer authentication, account updates, and team managemen
 from typing import Any
 
 from django.db import transaction
-from rest_framework.authtoken.models import Token
 from rest_framework.exceptions import AuthenticationFailed, ValidationError
 
 from apps.developer_accounts.models import (
     DeveloperAccount,
+    DeveloperAuthToken,
     DeveloperUser,
     DeveloperUserStatus,
     Permission,
@@ -32,7 +32,7 @@ def authenticate_developer(email: str, password: str) -> tuple[DeveloperUser, st
     if user.status != DeveloperUserStatus.ACTIVE:
         raise AuthenticationFailed("هذا الحساب غير نشط. تواصل مع مدير الحساب.")
 
-    token, _ = Token.objects.get_or_create(user_id=user.pk)
+    token, _ = DeveloperAuthToken.objects.get_or_create(user=user)
     return user, token.key
 
 

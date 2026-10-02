@@ -106,3 +106,13 @@ class TeamMemberUpdateSerializer(serializers.Serializer):
         choices=[("active", "Active"), ("inactive", "Inactive")],
         required=False,
     )
+
+
+class RegisterSerializer(serializers.Serializer):
+    """Developer account registration serializer."""
+
+    company_name = serializers.CharField(max_length=255)
+    email = serializers.EmailField()
+    password = serializers.CharField(write_only=True, min_length=8)
+    first_name = serializers.CharField(max_length=100)
+    last_name = serializers.CharField(max_length=100)

@@ -4,6 +4,9 @@ Inquiries — Background Tasks & Notifications
 Notification dispatch for property agents and consultants.
 Uses Celery shared_task with retry policy for transient failures.
 """
+import hashlib
+import hmac
+import json
 import logging
 
 import requests
@@ -13,6 +16,15 @@ from django.conf import settings
 from apps.inquiries.models import Inquiry
 
 logger = logging.getLogger(__name__)
+
+
+def _sign_payload(payload_bytes: bytes, secret: str) -> str:
+    """Generate HMAC-SHA256 signature for outbound webhook payloads."""
+    return hmac.new(
+        secret.encode("utf-8"),
+        payload_bytes,
+        hashlib.sha256,
+    ).hexdigest()
 
 
 @shared_task(
@@ -60,9 +72,21 @@ def send_inquiry_notification(self, inquiry_id: int) -> bool:
 
     webhook_url = getattr(settings, "NOTIFICATION_WEBHOOK_URL", "")
     if webhook_url:
+        payload = json.dumps({"phone": agent_phone, "message": notification_text})
+        payload_bytes = payload.encode("utf-8")
+
+        headers = {"Content-Type": "application/json"}
+
+        # Sign with HMAC if a webhook secret is configured
+        webhook_secret = getattr(settings, "NOTIFICATION_WEBHOOK_SECRET", "")
+        if webhook_secret:
+            signature = _sign_payload(payload_bytes, webhook_secret)
+            headers["X-Webhook-Signature"] = f"sha256={signature}"
+
         response = requests.post(
             webhook_url,
-            json={"phone": agent_phone, "message": notification_text},
+            data=payload_bytes,
+            headers=headers,
             timeout=10,
         )
         response.raise_for_status()

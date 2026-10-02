@@ -12,30 +12,34 @@ logger = logging.getLogger(__name__)
 
 
 @shared_task
-def calculate_location_medians():
+def calculate_location_averages():
     """
-    Calculate and log the average price per location.
+    Calculate and cache the average price per location.
     Runs periodically via Celery Beat (e.g. nightly).
     Results are cached for dashboard consumption.
+
+    NOTE: This computes averages, not medians. For actual median price
+    calculations (used in relevance scoring), see
+    apps.search.ranking._get_segment_median_price.
     """
     from django.core.cache import cache
 
-    logger.info("Starting location median calculation...")
+    logger.info("Starting location average price calculation...")
 
     locations = (
-        Property.objects.filter(view_count__gte=0)  # all active
+        Property.objects
         .values("location")
         .annotate(avg_price=Avg("price"))
         .order_by("-avg_price")
     )
 
-    medians = {}
+    averages = {}
     for loc in locations:
         if loc["location"]:
-            medians[loc["location"]] = float(loc["avg_price"])
+            averages[loc["location"]] = float(loc["avg_price"])
 
     # Cache for 25 hours (the task runs daily)
-    cache.set("location_price_medians", medians, timeout=90000)
+    cache.set("location_price_medians", averages, timeout=90000)
 
-    logger.info("Finished location median calculation. %d locations processed.", len(medians))
-    return medians
+    logger.info("Finished location average calculation. %d locations processed.", len(averages))
+    return averages

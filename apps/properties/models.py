@@ -3,6 +3,7 @@ Properties — Models
 ====================
 Read-only property catalog models matching frontend contract.
 """
+from django.contrib.postgres.indexes import GinIndex
 from django.db import models
 from apps.common.models import TimestampedModel
 
@@ -83,6 +84,21 @@ class Property(TimestampedModel):
         choices=PaymentMethod.choices,
     )
     parking = models.PositiveSmallIntegerField(default=0)
+    # ARCHITECTURE DECISION: Property <-> Project Linkage
+    # These two catalogs (Property vs Project) are intentionally loosely coupled.
+    # A Property can exist independently (e.g. secondary market/resale) and uses a free-text
+    # 'location' field. We DO NOT strictly migrate Property.location to locations.Location
+    # because off-plan properties are bound to a Project (and its location.Location),
+    # whereas secondary listings may just have free-text locations. Do not try to "fix"
+    # or strictly couple these without a major product decision.
+    project = models.ForeignKey(
+        "projects.Project",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="properties",
+        help_text="Optional link to developer project. Catalogs remain loosely coupled by design.",
+    )
     agent = models.ForeignKey(
         Agent,
         null=True,
@@ -107,6 +123,14 @@ class Property(TimestampedModel):
             models.Index(fields=["area_sqm"]),
             models.Index(fields=["property_type"]),
             models.Index(fields=["location"]),
+            # Postgres trigram index for icontains queries on free-text location.
+            # Requires CREATE EXTENSION pg_trgm; in the database.
+            # Harmlessly ignored on SQLite.
+            GinIndex(
+                name="property_location_trgm",
+                fields=["location"],
+                opclasses=["gin_trgm_ops"],
+            ),
         ]
 
     def __str__(self):

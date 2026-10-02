@@ -42,7 +42,7 @@ def start_survey(user):
     return session, SurveyQuestion.objects.get(order=1)
 
 
-def _get_session_for_request(request, session_id):
+def get_session_for_request(request, session_id):
     try:
         session = SurveySession.objects.get(pk=session_id)
     except SurveySession.DoesNotExist as exc:
@@ -55,8 +55,28 @@ def _get_session_for_request(request, session_id):
 def _serialize_matches(session):
     answers = {answer.question.key: answer.value for answer in session.answers.select_related("question")}
     scored = []
-    properties = Property.objects.prefetch_related("images", "amenities").select_related("agent")
-    for property_obj in properties:
+    qs = Property.objects.prefetch_related("images", "amenities").select_related("agent")
+
+    # DB-level pre-filtering: budget and unit types
+    budget_max = answers.get("budget_max")
+    if budget_max:
+        try:
+            max_p = float(budget_max) * 1.3
+            budget_qs = qs.filter(price__lte=max_p)
+            if budget_qs.exists():
+                qs = budget_qs
+        except (ValueError, TypeError):
+            pass
+
+    unit_types = answers.get("unit_types")
+    if unit_types and isinstance(unit_types, list):
+        types_qs = qs.filter(property_type__in=unit_types)
+        if types_qs.exists():
+            qs = types_qs
+
+    # Cap candidate set before in-memory scoring pass
+    candidates = list(qs[:500])
+    for property_obj in candidates:
         score = score_property_for_track(property_obj, "homebuyer", answers)
         scored.append({
             "property": PropertyListSerializer(property_obj).data,
@@ -71,12 +91,15 @@ def _serialize_matches(session):
     return scored[:4]
 
 
+_get_session_for_request = get_session_for_request
+
+
 @transaction.atomic
 def answer_survey_question(request, data: dict[str, Any]):
     session_id = request.data.get("session_id")
     if not session_id:
         raise ValidationError({"session_id": "This field is required."})
-    session = _get_session_for_request(request, session_id)
+    session = get_session_for_request(request, session_id)
     if session.status == SurveySession.Status.COMPLETED:
         raise ValidationError("This survey is already complete.")
 

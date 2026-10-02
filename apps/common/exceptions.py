@@ -16,13 +16,21 @@ def custom_exception_handler(exc, context):
     response = exception_handler(exc, context)
 
     if response is not None:
-        errors = response.data if isinstance(response.data, dict) else {"detail": response.data}
+        if isinstance(response.data, list):
+            errors = {"detail": response.data}
+        elif isinstance(response.data, dict):
+            errors = response.data
+        else:
+            errors = {"detail": str(response.data)}
 
         # Extract a human-readable message
+        message = "Validation error."
         if "detail" in errors:
-            message = str(errors.pop("detail"))
-        else:
-            message = "Validation error."
+            detail = errors.pop("detail")
+            if isinstance(detail, list) and len(detail) > 0:
+                message = str(detail[0])
+            else:
+                message = str(detail)
 
         response.data = {
             "success": False,

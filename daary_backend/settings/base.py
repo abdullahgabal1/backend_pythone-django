@@ -150,7 +150,7 @@ REST_FRAMEWORK = {
         "rest_framework_simplejwt.authentication.JWTAuthentication",
     ),
     "DEFAULT_PERMISSION_CLASSES": (
-        "rest_framework.permissions.AllowAny",
+        "rest_framework.permissions.IsAuthenticated",
     ),
     "DEFAULT_RENDERER_CLASSES": (
         "apps.common.renderers.ApiRenderer",
@@ -223,6 +223,15 @@ LOGGING = {
     },
 }
 
+# ─── Cache ────────────────────────────────────────────────────────
+REDIS_URL = env("REDIS_URL", default=env("CELERY_BROKER_URL", default="redis://localhost:6379/1"))
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.redis.RedisCache",
+        "LOCATION": REDIS_URL,
+    }
+}
+
 # ─── Celery ──────────────────────────────────────────────────────
 CELERY_BROKER_URL = env("CELERY_BROKER_URL", default="redis://localhost:6379/0")
 CELERY_RESULT_BACKEND = env("CELERY_RESULT_BACKEND", default="redis://localhost:6379/0")
@@ -232,6 +241,7 @@ CELERY_RESULT_SERIALIZER = "json"
 CELERY_TIMEZONE = TIME_ZONE
 CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
 NOTIFICATION_WEBHOOK_URL = env("NOTIFICATION_WEBHOOK_URL", default="")
+NOTIFICATION_WEBHOOK_SECRET = env("NOTIFICATION_WEBHOOK_SECRET", default="")
 
 # ─── drf-spectacular (OpenAPI / Swagger / ReDoc) ─────────────────
 SPECTACULAR_SETTINGS = {

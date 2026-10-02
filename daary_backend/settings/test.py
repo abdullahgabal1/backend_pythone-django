@@ -15,6 +15,14 @@ DATABASES = {
     },
 }
 
+# In-memory cache for tests
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        "LOCATION": "test-cache",
+    }
+}
+
 # Faster password hashing during tests
 PASSWORD_HASHERS = [
     "django.contrib.auth.hashers.MD5PasswordHasher",

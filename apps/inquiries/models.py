@@ -37,7 +37,14 @@ class Inquiry(TimestampedModel):
         Property,
         null=True,
         blank=True,
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
+        related_name="inquiries",
+    )
+    project = models.ForeignKey(
+        "projects.Project",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
         related_name="inquiries",
     )
     user = models.ForeignKey(

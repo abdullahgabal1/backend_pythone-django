@@ -31,13 +31,28 @@ def get_dashboard_stats(account: DeveloperAccount) -> dict:
     total_marketing = marketing_leads.count()
     marketing_last_30 = marketing_leads.filter(created_at__gte=thirty_days_ago).count()
 
-    # Leads by source
-    leads_by_source = dict(
-        marketing_leads
-        .values_list("source")
-        .annotate(cnt=Count("id"))
-        .order_by("-cnt")
+    # ── Buyer Inquiries ──
+    from django.db.models import Q
+    from apps.inquiries.models import Inquiry
+
+    inquiries = Inquiry.objects.filter(
+        Q(property__project__account=account) | Q(project__account=account)
     )
+    total_inquiries = inquiries.count()
+    inquiries_last_30 = inquiries.filter(created_at__gte=thirty_days_ago).count()
+
+    # Leads by source (combined)
+    marketing_by_source = dict(
+        marketing_leads.values_list("source").annotate(cnt=Count("id")).order_by("-cnt")
+    )
+    inquiries_by_source = dict(
+        inquiries.values_list("source").annotate(cnt=Count("id")).order_by("-cnt")
+    )
+    leads_by_source = {}
+    for src, cnt in marketing_by_source.items():
+        leads_by_source[src] = leads_by_source.get(src, 0) + cnt
+    for src, cnt in inquiries_by_source.items():
+        leads_by_source[src] = leads_by_source.get(src, 0) + cnt
 
     # ── Top Projects by marketing leads ──
     top_projects = (
@@ -59,8 +74,10 @@ def get_dashboard_stats(account: DeveloperAccount) -> dict:
             ],
         },
         "leads": {
-            "total": total_marketing,
-            "last_30_days": marketing_last_30,
+            "total": total_marketing + total_inquiries,
+            "marketing_total": total_marketing,
+            "inquiries_total": total_inquiries,
+            "last_30_days": marketing_last_30 + inquiries_last_30,
             "by_source": leads_by_source,
         },
         "location_medians": location_medians,
