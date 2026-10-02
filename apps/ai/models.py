@@ -28,15 +28,61 @@ class SurveySession(TimestampedModel):
 
 
 class SurveyQuestion(TimestampedModel):
-    key = models.SlugField(max_length=50, unique=True)
-    text = models.CharField(max_length=255)
-    question_type = models.CharField(max_length=30, default="single_choice")
-    options = models.JSONField(default=list)
-    order = models.PositiveIntegerField(unique=True)
+    class QuestionType(models.TextChoices):
+        SINGLE_CHOICE = "single_choice", "Single Choice (اختيار واحد)"
+        MULTI_CHOICE = "multi_choice", "Multi Choice (اختيار متعدد)"
+        FREE_TEXT = "free_text", "Free Text (كتابة حرة)"
+        CURRENCY = "currency", "Currency / Number (مبلغ مالي)"
+
+    key = models.SlugField(
+        max_length=50, unique=True,
+        help_text="⚠️ Used by the AI engine internally. Do NOT change existing keys.",
+    )
+    text = models.CharField(
+        max_length=255,
+        help_text="The question text shown to the buyer (Arabic or English).",
+    )
+    question_type = models.CharField(
+        max_length=30,
+        choices=QuestionType.choices,
+        default=QuestionType.SINGLE_CHOICE,
+        help_text="Single Choice = one answer, Multi Choice = multiple answers, Free Text = buyer types freely.",
+    )
+    options = models.JSONField(
+        default=list, blank=True,
+        help_text='List of choices as JSON. Example: ["cash", "installment", "mortgage"]. Leave empty for Free Text.',
+    )
+    order = models.PositiveIntegerField(
+        unique=True,
+        help_text="Controls the sequence. Lower number = asked first.",
+    )
     required = models.BooleanField(default=True)
+
+    # ─── Conditional Branching (Groups) ───────────────────────
+    depends_on = models.ForeignKey(
+        "self",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="dependent_questions",
+        verbose_name="Parent Question",
+        help_text="Leave empty = always shown. Set a parent = only shown if buyer picked a specific answer.",
+    )
+    depends_on_value = models.CharField(
+        max_length=255,
+        blank=True,
+        verbose_name="Trigger Answer",
+        help_text="The exact answer from the parent question that triggers this question.",
+    )
 
     class Meta:
         ordering = ["order"]
+
+    def __str__(self):
+        prefix = f"Q{self.order}"
+        if self.depends_on_id:
+            return f"{prefix}: {self.text} (→ if '{self.depends_on_value}')"
+        return f"{prefix}: {self.text}"
 
 
 class SurveyAnswer(TimestampedModel):

@@ -12,7 +12,7 @@ from rest_framework.views import APIView
 
 from apps.common.pagination import StandardPagination
 from apps.developer_accounts.authentication import DeveloperTokenAuthentication
-from apps.developer_accounts.models import DeveloperAccount, DeveloperAuthToken, DeveloperUser
+from apps.developer_accounts.models import DeveloperAccount, DeveloperAuthToken, DeveloperUser, Permission
 from apps.developer_accounts.permissions import HasDeveloperPermission, IsDeveloperAuthenticated
 from apps.developer_accounts.selectors import get_team_members
 from apps.developer_accounts.serializers import (
@@ -60,6 +60,20 @@ class LoginView(APIView):
         )
 
 
+class LogoutView(APIView):
+    """
+    Developer logout — deletes the auth token.
+    POST /api/v1/developer/logout/
+    """
+
+    authentication_classes = [DeveloperTokenAuthentication]
+    permission_classes = [IsDeveloperAuthenticated]
+
+    def post(self, request):
+        DeveloperAuthToken.objects.filter(user=request.user).delete()
+        return Response({"detail": "تم تسجيل الخروج بنجاح."}, status=status.HTTP_200_OK)
+
+
 class RegisterView(APIView):
     """
     Developer registration — creates account + primary user.
@@ -88,6 +102,11 @@ class RegisterView(APIView):
                 account=account,
                 is_primary=True,
             )
+            
+            # Automatically assign all available permissions to the primary user
+            all_perms = Permission.objects.all()
+            user.permissions.set(all_perms)
+            
             token, _ = DeveloperAuthToken.objects.get_or_create(user=user)
 
         return Response(

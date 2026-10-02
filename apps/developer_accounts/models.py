@@ -110,8 +110,6 @@ class DeveloperUser(AbstractBaseUser):
 
     def has_perm(self, perm, obj=None):
         """Check if user has a specific permission codename."""
-        if self.is_primary:
-            return True
         return self.permissions.filter(codename=perm).exists()
 
     def has_module_perms(self, app_label):

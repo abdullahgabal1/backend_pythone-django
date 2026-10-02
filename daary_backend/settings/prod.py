@@ -29,9 +29,18 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 # Tighten CORS to explicit origins only
 CORS_ALLOW_ALL_ORIGINS = False
 
-# ─── S3 File Storage (production) ────────────────────────────────
-# Activate S3 for media uploads in production when bucket is configured
-if env("AWS_STORAGE_BUCKET_NAME", default=""):
+# ─── File Storage (production) ────────────────────────────────
+# Use Cloudinary for free media storage, fallback to local if not set
+if env("CLOUDINARY_URL", default=""):
+    STORAGES = {
+        "default": {
+            "BACKEND": "cloudinary_storage.storage.MediaCloudinaryStorage",
+        },
+        "staticfiles": {
+            "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+        },
+    }
+elif env("AWS_STORAGE_BUCKET_NAME", default=""):
     STORAGES = {
         "default": {
             "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
@@ -40,3 +49,13 @@ if env("AWS_STORAGE_BUCKET_NAME", default=""):
             "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
         },
     }
+else:
+    STORAGES = {
+        "default": {
+            "BACKEND": "django.core.files.storage.FileSystemStorage",
+        },
+        "staticfiles": {
+            "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+        },
+    }
+

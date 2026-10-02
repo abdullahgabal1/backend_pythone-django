@@ -10,36 +10,14 @@ from apps.properties.models import Property
 from apps.properties.serializers import PropertyListSerializer
 
 
-QUESTION_BANK = [
-    {"key": "budget_max", "text": "What is your maximum budget in Egyptian pounds?", "question_type": "currency", "options": []},
-    {"key": "financing_needed", "text": "Which payment method do you prefer?", "options": ["cash", "installment", "mortgage", "any"]},
-    {"key": "timeline", "text": "When would you like to receive the property?", "options": ["ready", "within_1_year", "within_3_years"]},
-    {"key": "household_size", "text": "How many bedrooms do you need?", "options": ["single_or_couple", "small_family", "large_family"]},
-    {"key": "preferred_areas", "text": "Which areas do you prefer?", "question_type": "multi_choice", "options": ["التجمع الخامس", "الشيخ زايد", "المعادي", "الشروق", "الساحل الشمالي", "open_to_suggestions"]},
-    {"key": "unit_types", "text": "Which property types interest you?", "question_type": "multi_choice", "options": ["apartment", "villa", "townhouse", "duplex", "penthouse"]},
-    {"key": "must_haves", "text": "Which features are essential?", "question_type": "multi_choice", "options": ["parking", "pool", "security", "schools_nearby", "transit_access"]},
-]
-
-
-def _ensure_question_bank() -> None:
-    for order, definition in enumerate(QUESTION_BANK, start=1):
-        SurveyQuestion.objects.update_or_create(
-            key=definition["key"],
-            defaults={
-                "text": definition["text"],
-                "question_type": definition.get("question_type", "single_choice"),
-                "options": definition["options"],
-                "order": order,
-                "required": True,
-            },
-        )
-
-
 @transaction.atomic
 def start_survey(user):
-    _ensure_question_bank()
+    # Retrieve the first question based on 'order'
+    first_question = SurveyQuestion.objects.order_by("order").first()
+    if not first_question:
+        raise NotFound("No survey questions found in the database. Please add them via the Admin panel.")
     session = SurveySession.objects.create(user=user if getattr(user, "is_authenticated", False) else None)
-    return session, SurveyQuestion.objects.get(order=1)
+    return session, first_question
 
 
 def get_session_for_request(request, session_id):
@@ -53,7 +31,54 @@ def get_session_for_request(request, session_id):
 
 
 def _serialize_matches(session):
+    # Fetch answers
     answers = {answer.question.key: answer.value for answer in session.answers.select_related("question")}
+    
+    # ─── Option B: Keyword Search (Free Text Extraction) ───
+    # If the user typed free-text, we try to extract known keywords to map to our existing logic.
+    free_text_values = []
+    for answer in session.answers.all():
+        if answer.question.question_type == "free_text" and isinstance(answer.value, str):
+            free_text_values.append(answer.value.lower())
+    
+    if free_text_values:
+        combined_text = " ".join(free_text_values)
+        
+        # 1. Extract Unit Types (villa, apartment, etc)
+        extracted_types = []
+        if any(w in combined_text for w in ["فيلا", "villa"]):
+            extracted_types.append("villa")
+        if any(w in combined_text for w in ["شقة", "شقق", "apartment"]):
+            extracted_types.append("apartment")
+        if any(w in combined_text for w in ["دوبلكس", "duplex"]):
+            extracted_types.append("duplex")
+        if any(w in combined_text for w in ["تاون هاوس", "townhouse"]):
+            extracted_types.append("townhouse")
+            
+        if extracted_types:
+            # Merge with existing
+            existing_types = answers.get("unit_types", [])
+            if isinstance(existing_types, list):
+                answers["unit_types"] = list(set(existing_types + extracted_types))
+            else:
+                answers["unit_types"] = extracted_types
+                
+        # 2. Extract Must-haves (pool, parking, etc)
+        extracted_must_haves = []
+        if any(w in combined_text for w in ["مسبح", "حمام سباحة", "pool"]):
+            extracted_must_haves.append("pool")
+        if any(w in combined_text for w in ["جراج", "موقف", "parking", "سيارات"]):
+            extracted_must_haves.append("parking")
+        if any(w in combined_text for w in ["امن", "حراسة", "security"]):
+            extracted_must_haves.append("security")
+            
+        if extracted_must_haves:
+            existing_haves = answers.get("must_haves", [])
+            if isinstance(existing_haves, list):
+                answers["must_haves"] = list(set(existing_haves + extracted_must_haves))
+            else:
+                answers["must_haves"] = extracted_must_haves
+
     scored = []
     qs = Property.objects.prefetch_related("images", "amenities").select_related("agent")
 
@@ -88,10 +113,34 @@ def _serialize_matches(session):
             "reasons": score["reasons"],
         })
     scored.sort(key=lambda item: item["score"], reverse=True)
-    return scored[:4]
+    return scored[:3]
 
 
 _get_session_for_request = get_session_for_request
+
+
+def get_next_valid_question(session, current_order):
+    """
+    Finds the next valid question based on order and conditional branching (depends_on).
+    """
+    answers = {a.question_id: a.value for a in session.answers.all()}
+    
+    candidates = SurveyQuestion.objects.filter(order__gt=current_order).order_by("order")
+    for q in candidates:
+        if not q.depends_on_id:
+            return q
+        
+        parent_answer = answers.get(q.depends_on_id)
+        if not parent_answer:
+            continue
+            
+        if isinstance(parent_answer, list):
+            if q.depends_on_value in parent_answer:
+                return q
+        elif str(parent_answer) == q.depends_on_value:
+            return q
+            
+    return None
 
 
 @transaction.atomic
@@ -113,7 +162,9 @@ def answer_survey_question(request, data: dict[str, Any]):
         raise ValidationError({"question": "Answers must be submitted in sequence."})
 
     SurveyAnswer.objects.update_or_create(session=session, question=question, defaults={"value": data["answer"]})
-    next_question = SurveyQuestion.objects.filter(order__gt=question.order).first()
+    
+    next_question = get_next_valid_question(session, question.order)
+    
     if next_question:
         session.current_question_order = next_question.order
         session.save(update_fields=["current_question_order", "updated_at"])

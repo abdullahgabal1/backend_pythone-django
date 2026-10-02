@@ -112,9 +112,15 @@ class ProjectStatsView(APIView):
             raise NotFound("المشروع غير موجود.")
 
         from apps.marketing.models import MarketingLead
+        from django.db.models import Sum
+        
+        # Calculate total views across all properties in this project
+        total_views = project.properties.aggregate(total=Sum("view_count"))["total"] or 0
+
         stats = {
             "gallery_count": project.gallery.count(),
             "marketing_leads": MarketingLead.objects.filter(project=project).count(),
+            "total_views": total_views,
         }
         return Response(stats)
 

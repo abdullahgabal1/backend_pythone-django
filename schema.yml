@@ -1,0 +1,1205 @@
+openapi: 3.0.3
+info:
+  title: Daary AI Backend API
+  version: 1.0.0
+  description: API documentation for the Daary real estate platform.
+paths:
+  /api/v1/account/me/:
+    get:
+      operationId: api_v1_account_me_retrieve
+      description: |-
+        GET  /api/v1/account/me/ — retrieve current user profile
+        PATCH /api/v1/account/me/ — update current user profile (name, birthday)
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+    patch:
+      operationId: api_v1_account_me_partial_update
+      description: |-
+        GET  /api/v1/account/me/ — retrieve current user profile
+        PATCH /api/v1/account/me/ — update current user profile (name, birthday)
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/ai/survey/{session_id}/results/:
+    get:
+      operationId: api_v1_ai_survey_results_retrieve
+      parameters:
+      - in: path
+        name: session_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SurveyResult'
+          description: ''
+  /api/v1/ai/survey/answer/:
+    post:
+      operationId: api_v1_ai_survey_answer_create
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SurveyAnswer'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/SurveyAnswer'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SurveyAnswer'
+        required: true
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SurveyAnswer'
+          description: ''
+  /api/v1/ai/survey/start/:
+    post:
+      operationId: api_v1_ai_survey_start_create
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SurveyQuestion'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/SurveyQuestion'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SurveyQuestion'
+        required: true
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SurveyQuestion'
+          description: ''
+  /api/v1/auth/challenge/:
+    get:
+      operationId: api_v1_auth_challenge_retrieve
+      description: |-
+        GET /api/v1/auth/challenge/
+
+        Step 1 — Returns a Proof-of-Work challenge + Turnstile site key
+        for the frontend to solve via @akedly/shield.
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /api/v1/auth/logout/:
+    post:
+      operationId: api_v1_auth_logout_create
+      description: |-
+        POST /api/v1/auth/logout/
+
+        Allows the user to log out by blacklisting their refresh token.
+        Requires authentication.
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/auth/send-otp/:
+    post:
+      operationId: api_v1_auth_send_otp_create
+      description: |-
+        POST /api/v1/auth/send-otp/
+
+        Step 2 — Send the OTP once the client has solved the challenge.
+        Server-side validation happens here — never trust the frontend's
+        own phone-format checks.
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /api/v1/auth/token/refresh/:
+    post:
+      operationId: api_v1_auth_token_refresh_create
+      description: |-
+        Takes a refresh type JSON web token and returns an access type JSON web
+        token if the refresh token is valid.
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenRefresh'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TokenRefresh'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TokenRefresh'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenRefresh'
+          description: ''
+  /api/v1/auth/verify-otp/:
+    post:
+      operationId: api_v1_auth_verify_otp_create
+      description: |-
+        POST /api/v1/auth/verify-otp/
+
+        Step 3 — Verify the code the user typed in.
+        On success: creates/activates the user and returns JWT tokens.
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /api/v1/contact/lead/:
+    post:
+      operationId: api_v1_contact_lead_create
+      description: |-
+        Public webhook/endpoint for ingesting leads from ad campaigns.
+        POST /api/v1/contact/lead/
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MarketingLeadCreate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/MarketingLeadCreate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/MarketingLeadCreate'
+        required: true
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MarketingLeadCreate'
+          description: ''
+  /api/v1/developer/account/:
+    get:
+      operationId: api_v1_developer_account_retrieve
+      description: |-
+        Manage the authenticated developer's own profile.
+        PUT /api/v1/developer/account/ — update profile
+        DELETE /api/v1/developer/account/ — delete entire account
+      tags:
+      - api
+      security:
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+    put:
+      operationId: api_v1_developer_account_update
+      description: |-
+        Manage the authenticated developer's own profile.
+        PUT /api/v1/developer/account/ — update profile
+        DELETE /api/v1/developer/account/ — delete entire account
+      tags:
+      - api
+      security:
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+    delete:
+      operationId: api_v1_developer_account_destroy
+      description: |-
+        Manage the authenticated developer's own profile.
+        PUT /api/v1/developer/account/ — update profile
+        DELETE /api/v1/developer/account/ — delete entire account
+      tags:
+      - api
+      security:
+      - tokenAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/developer/dashboard/overview/:
+    get:
+      operationId: api_v1_developer_dashboard_overview_retrieve
+      description: GET /api/v1/developer/dashboard/overview/
+      tags:
+      - api
+      security:
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DashboardOverview'
+          description: ''
+  /api/v1/developer/leads/:
+    get:
+      operationId: api_v1_developer_leads_retrieve
+      description: |-
+        List leads for the authenticated developer's account.
+        Supports querying buyer property/project inquiries (default) or ad marketing leads (?type=marketing).
+        GET /api/v1/developer/leads/
+      tags:
+      - api
+      security:
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/developer/leads/{id}/:
+    get:
+      operationId: api_v1_developer_leads_retrieve_2
+      description: |-
+        Retrieve or update (status/rating) a specific buyer lead.
+        GET /api/v1/developer/leads/<id>/
+        PATCH /api/v1/developer/leads/<id>/
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - api
+      security:
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+    patch:
+      operationId: api_v1_developer_leads_partial_update
+      description: |-
+        Retrieve or update (status/rating) a specific buyer lead.
+        GET /api/v1/developer/leads/<id>/
+        PATCH /api/v1/developer/leads/<id>/
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - api
+      security:
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/developer/leads/export/:
+    get:
+      operationId: api_v1_developer_leads_export_retrieve
+      description: |-
+        Export all leads (marketing campaigns and buyer inquiries) as CSV.
+        GET /api/v1/developer/leads/export/
+      tags:
+      - api
+      security:
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/developer/login/:
+    post:
+      operationId: api_v1_developer_login_create
+      description: |-
+        Developer login — returns token + user data.
+        POST /api/v1/developer/login/
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /api/v1/developer/projects/:
+    get:
+      operationId: api_v1_developer_projects_retrieve
+      description: |-
+        List or create projects for the authenticated developer's account.
+        GET /api/v1/developer/projects/
+        POST /api/v1/developer/projects/
+      tags:
+      - api
+      security:
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+    post:
+      operationId: api_v1_developer_projects_create
+      description: |-
+        List or create projects for the authenticated developer's account.
+        GET /api/v1/developer/projects/
+        POST /api/v1/developer/projects/
+      tags:
+      - api
+      security:
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/developer/projects/{id}/:
+    get:
+      operationId: api_v1_developer_projects_retrieve_2
+      description: |-
+        Get, update, or delete a specific project.
+        GET/PUT/DELETE /api/v1/developer/projects/<id>/
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - api
+      security:
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+    put:
+      operationId: api_v1_developer_projects_update
+      description: |-
+        Get, update, or delete a specific project.
+        GET/PUT/DELETE /api/v1/developer/projects/<id>/
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - api
+      security:
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+    delete:
+      operationId: api_v1_developer_projects_destroy
+      description: |-
+        Get, update, or delete a specific project.
+        GET/PUT/DELETE /api/v1/developer/projects/<id>/
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - api
+      security:
+      - tokenAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/developer/projects/{id}/stats/:
+    get:
+      operationId: api_v1_developer_projects_stats_retrieve
+      description: |-
+        Get quick stats for a specific project.
+        GET /api/v1/developer/projects/<id>/stats/
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - api
+      security:
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/developer/register/:
+    post:
+      operationId: api_v1_developer_register_create
+      description: |-
+        Developer registration — creates account + primary user.
+        POST /api/v1/developer/register/
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /api/v1/developer/team/:
+    get:
+      operationId: api_v1_developer_team_retrieve
+      description: |-
+        List all team members in the developer's account.
+        GET /api/v1/developer/team/
+      tags:
+      - api
+      security:
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/developer/team/{id}/:
+    put:
+      operationId: api_v1_developer_team_update
+      description: |-
+        Update or deactivate a team member.
+        PUT /api/v1/developer/team/<id>/
+        DELETE /api/v1/developer/team/<id>/ — soft-deactivate
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - api
+      security:
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+    delete:
+      operationId: api_v1_developer_team_destroy
+      description: |-
+        Update or deactivate a team member.
+        PUT /api/v1/developer/team/<id>/
+        DELETE /api/v1/developer/team/<id>/ — soft-deactivate
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - api
+      security:
+      - tokenAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/developer/team/invite/:
+    post:
+      operationId: api_v1_developer_team_invite_create
+      description: |-
+        Invite a new team member.
+        POST /api/v1/developer/team/
+      tags:
+      - api
+      security:
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/favorites/:
+    get:
+      operationId: api_v1_favorites_list
+      description: |-
+        List all favorited properties for the authenticated user.
+        GET /api/v1/favorites/
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedFavoriteList'
+          description: ''
+  /api/v1/favorites/{id}/toggle/:
+    post:
+      operationId: api_v1_favorites_toggle_create
+      description: |-
+        Toggle a property in the authenticated user's favorites.
+        POST /api/v1/favorites/<pk>/toggle/
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/inquiries/:
+    post:
+      operationId: api_v1_inquiries_create
+      description: |-
+        Submit an inquiry or viewing request on a property.
+        POST /api/v1/inquiries/
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /api/v1/inquiries/{id}/:
+    get:
+      operationId: api_v1_inquiries_retrieve
+      description: |-
+        Get detailed information for a specific inquiry owned by the user.
+        GET /api/v1/inquiries/<pk>/
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/inquiries/my/:
+    get:
+      operationId: api_v1_inquiries_my_list
+      description: |-
+        List all inquiries submitted by the authenticated buyer.
+        GET /api/v1/inquiries/my/
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedInquiryListList'
+          description: ''
+  /api/v1/locations/:
+    get:
+      operationId: api_v1_locations_list
+      description: |-
+        List structural locations for developer dashboard.
+        GET /api/v1/locations/
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Location'
+          description: ''
+  /api/v1/properties/:
+    get:
+      operationId: api_v1_properties_list
+      description: |-
+        List properties with basic filtering and pagination.
+        Supports ?is_featured=true, ?ordering=newest, etc.
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedPropertyListList'
+          description: ''
+  /api/v1/properties/{id}/:
+    get:
+      operationId: api_v1_properties_retrieve
+      description: Property detail view. Increments view_count with client-level deduplication.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /api/v1/search/:
+    get:
+      operationId: api_v1_search_retrieve
+      description: |-
+        Search and filter properties according to the complete buyer frontend filter contract.
+        GET /api/v1/search/
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          description: No response body
+components:
+  schemas:
+    CompletionStatusEnum:
+      enum:
+      - ready
+      - off_plan
+      type: string
+      description: |-
+        * `ready` - جاهز للتسليم
+        * `off_plan` - تحت الإنشاء
+    DashboardOverview:
+      type: object
+      properties:
+        projects:
+          $ref: '#/components/schemas/ProjectsSummary'
+        leads:
+          $ref: '#/components/schemas/LeadsSummary'
+        location_medians:
+          type: object
+          additionalProperties:
+            type: number
+            format: double
+      required:
+      - leads
+      - projects
+    Favorite:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        property:
+          allOf:
+          - $ref: '#/components/schemas/PropertyList'
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - id
+      - property
+    InquiryList:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        property:
+          allOf:
+          - $ref: '#/components/schemas/PropertyList'
+          readOnly: true
+        project:
+          type: integer
+          nullable: true
+        name:
+          type: string
+          maxLength: 150
+        phone:
+          type: string
+          maxLength: 20
+        inquiry_type:
+          $ref: '#/components/schemas/InquiryTypeEnum'
+        status:
+          $ref: '#/components/schemas/StatusEnum'
+        preferred_contact_method:
+          $ref: '#/components/schemas/PreferredContactMethodEnum'
+        preferred_time:
+          type: string
+          format: date-time
+          nullable: true
+        agent_notified:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - id
+      - name
+      - phone
+      - property
+    InquiryTypeEnum:
+      enum:
+      - message
+      - viewing
+      - call
+      - whatsapp
+      - consultation_lead
+      type: string
+      description: |-
+        * `message` - رسالة
+        * `viewing` - طلب معاينة
+        * `call` - طلب اتصال
+        * `whatsapp` - واتساب
+        * `consultation_lead` - استشارة عقارية ذكية
+    LeadsSummary:
+      type: object
+      properties:
+        total:
+          type: integer
+        marketing_total:
+          type: integer
+        inquiries_total:
+          type: integer
+        last_30_days:
+          type: integer
+        by_source:
+          type: object
+          additionalProperties:
+            type: integer
+      required:
+      - by_source
+      - inquiries_total
+      - last_30_days
+      - marketing_total
+      - total
+    Location:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          maxLength: 150
+        parent:
+          type: integer
+          nullable: true
+      required:
+      - id
+      - name
+      - parent
+    MarketingLeadCreate:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 150
+        phone:
+          type: string
+          maxLength: 20
+        source:
+          $ref: '#/components/schemas/SourceEnum'
+        campaign_name:
+          type: string
+          maxLength: 150
+        project:
+          type: integer
+          nullable: true
+      required:
+      - name
+      - phone
+    PaginatedFavoriteList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Favorite'
+    PaginatedInquiryListList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/InquiryList'
+    PaginatedPropertyListList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/PropertyList'
+    PreferredContactMethodEnum:
+      enum:
+      - whatsapp
+      - phone
+      - email
+      type: string
+      description: |-
+        * `whatsapp` - واتساب
+        * `phone` - اتصال هاتفي
+        * `email` - بريد إلكتروني
+    ProjectStats:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        lead_count:
+          type: integer
+      required:
+      - id
+      - lead_count
+      - name
+    ProjectsSummary:
+      type: object
+      properties:
+        total:
+          type: integer
+        active:
+          type: integer
+        top_by_leads:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProjectStats'
+      required:
+      - active
+      - top_by_leads
+      - total
+    PropertyList:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        title:
+          type: string
+          maxLength: 200
+        location:
+          type: string
+          maxLength: 255
+        price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+        price_suffix:
+          type: string
+          maxLength: 50
+        area_sqm:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+        beds:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+          description: 0 means studio
+        baths:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+        property_type:
+          $ref: '#/components/schemas/PropertyTypeEnum'
+        completion_status:
+          $ref: '#/components/schemas/CompletionStatusEnum'
+        cover_image:
+          type: string
+          nullable: true
+          readOnly: true
+        is_featured:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - area_sqm
+      - baths
+      - beds
+      - completion_status
+      - cover_image
+      - created_at
+      - id
+      - location
+      - price
+      - property_type
+      - title
+    PropertyTypeEnum:
+      enum:
+      - apartment
+      - villa
+      - townhouse
+      - penthouse
+      - chalet
+      - duplex
+      - office
+      type: string
+      description: |-
+        * `apartment` - شقة
+        * `villa` - فيلا
+        * `townhouse` - تاون هاوس
+        * `penthouse` - بنتهاوس
+        * `chalet` - شاليه
+        * `duplex` - دوبلكس
+        * `office` - مكتب
+    QuestionTypeEnum:
+      enum:
+      - single_choice
+      - multi_choice
+      - free_text
+      - currency
+      type: string
+      description: |-
+        * `single_choice` - Single Choice (اختيار واحد)
+        * `multi_choice` - Multi Choice (اختيار متعدد)
+        * `free_text` - Free Text (كتابة حرة)
+        * `currency` - Currency / Number (مبلغ مالي)
+    SourceEnum:
+      enum:
+      - facebook
+      - instagram
+      - google
+      - tiktok
+      - direct
+      type: string
+      description: |-
+        * `facebook` - Facebook Ads
+        * `instagram` - Instagram Ads
+        * `google` - Google Ads
+        * `tiktok` - TikTok Ads
+        * `direct` - Direct/Organic
+    StatusEnum:
+      enum:
+      - pending
+      - contacted
+      - completed
+      - cancelled
+      type: string
+      description: |-
+        * `pending` - قيد الانتظار
+        * `contacted` - تم التواصل
+        * `completed` - مكتمل
+        * `cancelled` - ملغي
+    SurveyAnswer:
+      type: object
+      properties:
+        question_id:
+          type: integer
+        question_key:
+          type: string
+        answer: {}
+      required:
+      - answer
+    SurveyQuestion:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        key:
+          type: string
+          description: ⚠️ Used by the AI engine internally. Do NOT change existing
+            keys.
+          maxLength: 50
+          pattern: ^[-a-zA-Z0-9_]+$
+        text:
+          type: string
+          description: The question text shown to the buyer (Arabic or English).
+          maxLength: 255
+        question_type:
+          allOf:
+          - $ref: '#/components/schemas/QuestionTypeEnum'
+          description: |-
+            Single Choice = one answer, Multi Choice = multiple answers, Free Text = buyer types freely.
+
+            * `single_choice` - Single Choice (اختيار واحد)
+            * `multi_choice` - Multi Choice (اختيار متعدد)
+            * `free_text` - Free Text (كتابة حرة)
+            * `currency` - Currency / Number (مبلغ مالي)
+        options:
+          description: 'List of choices as JSON. Example: ["cash", "installment",
+            "mortgage"]. Leave empty for Free Text.'
+        required:
+          type: boolean
+        order:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+          description: Controls the sequence. Lower number = asked first.
+      required:
+      - id
+      - key
+      - order
+      - text
+    SurveyResult:
+      type: object
+      properties:
+        session_id:
+          type: string
+          format: uuid
+          readOnly: true
+        top_properties: {}
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - session_id
+    TokenRefresh:
+      type: object
+      properties:
+        access:
+          type: string
+          readOnly: true
+        refresh:
+          type: string
+      required:
+      - access
+      - refresh
+  securitySchemes:
+    jwtAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    tokenAuth:
+      type: apiKey
+      in: header
+      name: Authorization
+      description: Token-based authentication with required prefix "Token"

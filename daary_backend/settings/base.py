@@ -53,6 +53,8 @@ THIRD_PARTY_APPS = [
     "corsheaders",
     "django_celery_beat",
     "drf_spectacular",
+    "cloudinary_storage",
+    "cloudinary",
 ]
 
 LOCAL_APPS = [
@@ -132,6 +134,9 @@ USE_TZ = True
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 STORAGES = {
+    "default": {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+    },
     "staticfiles": {
         "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
     },
